@@ -29,27 +29,19 @@ func main() {
 
 	read(kinesisClient, consumerARN, &streamARN)
 
-	removeSubscription(kinesisClient, &kinesis.DeregisterStreamConsumerInput{
-		ConsumerName: &consumerName,
-		StreamARN:    &streamARN,
-	})
 }
 
 func read(client *kinesis.Client, consumerARN *string, streamARN *string) {
-	for { // Run indefinitely
+	for { 
 
 		shards, err := listShards(client, &kinesis.ListShardsInput{
 			StreamARN: streamARN,
 		})
 
-		if err != nil || shards == nil {
-			return
-		}
-
-		if shards == nil {
+		if err != nil {
 			log.Println("Error listing shards, retrying in 30 seconds")
 			time.Sleep(1 * time.Second)
-			continue // Retry after a delay
+			continue 
 		}
 
 		var wg sync.WaitGroup
@@ -67,15 +59,12 @@ func read(client *kinesis.Client, consumerARN *string, streamARN *string) {
 func createSubscription(client *kinesis.Client, params *kinesis.RegisterStreamConsumerInput) *string {
 	ctx := context.TODO()
 
-	// Attempt to create a new consumer.
 	output, err := client.RegisterStreamConsumer(ctx, params)
 	if err != nil {
 		fmt.Printf("Failed to register consumer: %v\n", err)
-		// Check if the error is due to an existing consumer.
 		if strings.Contains(err.Error(), "ResourceInUseException") {
 			fmt.Printf("Consumer already exists")
 
-			// Describe the existing consumer to get its ARN.
 			describeOutput, describeErr := client.DescribeStreamConsumer(ctx, &kinesis.DescribeStreamConsumerInput{
 				ConsumerName: params.ConsumerName,
 				StreamARN:    params.StreamARN,
@@ -88,13 +77,11 @@ func createSubscription(client *kinesis.Client, params *kinesis.RegisterStreamCo
 
 			return describeOutput.ConsumerDescription.ConsumerARN
 		} else {
-			// Handle other errors.
 			log.Printf("Failed to register consumer: %v", err)
 			return nil
 		}
 	}
 
-	// Wait for the consumer to become active.
 	for {
 		consumerStatus, err := client.DescribeStreamConsumer(ctx, &kinesis.DescribeStreamConsumerInput{
 			ConsumerARN: output.Consumer.ConsumerARN,
@@ -116,13 +103,6 @@ func createSubscription(client *kinesis.Client, params *kinesis.RegisterStreamCo
 	return output.Consumer.ConsumerARN
 }
 
-func removeSubscription(client *kinesis.Client, params *kinesis.DeregisterStreamConsumerInput) {
-	_, err := client.DeregisterStreamConsumer(context.TODO(), params)
-	if err != nil {
-		log.Printf("failed to deregister consumer: %v", err)
-	}
-	fmt.Println("Subscription removed")
-}
 
 func listShards(client *kinesis.Client, params *kinesis.ListShardsInput) (*[]types.Shard, error) {
 	output, err := client.ListShards(context.TODO(), params)
