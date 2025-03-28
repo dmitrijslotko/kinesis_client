@@ -20,7 +20,7 @@ func main() {
 	}
 	kinesisClient := kinesis.NewFromConfig(cfg)
 	consumerName := "my-consumer"
-	streamARN := "REPLACE_WITH_STREAM_ARN"
+	streamARN := "REPLACE_ME"
 
 	consumerARN := createSubscription(kinesisClient, &kinesis.RegisterStreamConsumerInput{
 		ConsumerName: &consumerName,
@@ -134,6 +134,9 @@ func subscribeToShard(client *kinesis.Client, consumerARN *string, shard types.S
 		if recordEvent, ok := event.(*types.SubscribeToShardEventStreamMemberSubscribeToShardEvent); ok {
 			seconds := *recordEvent.Value.MillisBehindLatest / 1000
 			fmt.Printf("Shard %s: Seconds Behind: %d\n", *shard.ShardId, seconds)
+			for _, record := range recordEvent.Value.Records {
+				fmt.Printf("Shard %s: Record: %s\n", *shard.ShardId, string(record.Data))
+			}
 		}
 	}
 
